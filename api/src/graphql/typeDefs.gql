@@ -1,0 +1,32 @@
+input InputRegisterOdontologo {
+  cedula: String!
+  nombres: String!
+  apellidos: String!
+  ciudad: String!
+  direccion: String!
+  celular: String!
+  email: String!
+  especialidad: String!
+}
+
+type Odontologo {
+  cedula: String!
+  nombres: String!
+  apellidos: String!
+  ciudad: String!
+  direccion: String!
+  celular: String!
+  email: String!
+  especialidad: String!
+}
+
+type Query {
+  getInicial: String
+  queryUserByCedula(cedula: String!): String
+  getDataUser(cedula: String!): Odontologo
+}
+
+type Mutation {
+  registerUser(InputRegisterOdontologo: InputRegisterOdontologo!): String
+  registerUserWin(cedula: String!): String
+}
