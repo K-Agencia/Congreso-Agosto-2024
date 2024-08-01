@@ -1,17 +1,19 @@
-import { GraphQLError } from "graphql";
+import { GraphQLError, subscribe } from "graphql";
 import { QUERY_DB } from "../db/query.js";
 import Odontologos from "../model/Odontologos.js";
+import { PubSub } from "graphql-subscriptions";
 
 const TABLE = "congreso_agosto_2024";
+const pubSub = new PubSub();
 
 export default {
   Query: {
-    async getInicial() {
+    async getlistUsers() {
       try {
-        const sql = `SELECT * FROM congreso_agosto_2024`;
-        const res = await QUERY_DB({ sql });
-        console.log(res);
-        return "Hola Mundo";
+        const sql = `SELECT id, cedulas as cedula, nombres, apellidos, ciudad, direccion, celular, email, especialidad, reclamo FROM ${TABLE};`;
+        const [rows] = await QUERY_DB({ sql });
+
+        return rows;
       } catch (error) {
         console.log(error);
       }
@@ -78,9 +80,15 @@ export default {
         );
 
         await QUERY_DB({
-          sql: `INSERT INTO ${TABLE} (cedulas, nombres, apellidos, ciudad, celular, email) VALUES (?, ?, ?, ?, ?, ?)`,
+          sql: `INSERT INTO ${TABLE} (cedulas, nombres, apellidos, ciudad, direccion, celular, email, especialidad) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
           values: [cedula, nombres, apellidos, ciudad, direccion, celular, email, especialidad]
         });
+
+        const [rows] = await QUERY_DB({
+          sql: `SELECT id, cedulas as cedula, nombres, apellidos, ciudad, direccion, celular, email, especialidad, reclamo FROM ${TABLE};`
+        });
+
+        pubSub.publish('GET_USERS', { listUsers: rows })
 
         return "Sus datos se han actualizado correctamente"
 
@@ -89,23 +97,31 @@ export default {
         throw new GraphQLError("¡Ups! Tuvimos un error en el seistema, intentalo más tarde.")
       }
     },
-    async registerUserWin(_, { cedula }) {
+    async registerUserWin(_, { id }) {
+
       try {
         const sendMysqlQuery = await QUERY_DB({
-          sql: `SELECT reclamo FROM ${TABLE} WHERE cedulas = ?;`,
-          values: cedula
+          sql: `SELECT id, reclamo FROM ${TABLE} WHERE id = ?;`,
+          values: id
         });
 
-        if (sendMysqlQuery[0].reclamo === 1) {
+        if (sendMysqlQuery[0][0].reclamo === 1) {
           return "Ya ha reclamado el premio"
         }
 
         await QUERY_DB({
           sql: `UPDATE ${TABLE} SET reclamo = '1' WHERE (id = ?);`,
-          values: cedula
+          values: id
         });
 
-        return "Sin reclamar premio"
+        const [rows] = await QUERY_DB({
+          sql: `SELECT id, cedulas as cedula, nombres, apellidos, ciudad, direccion, celular, email, especialidad, reclamo FROM ${TABLE} WHERE id = ?;`,
+          values: id
+        });
+
+        // pubSub.publish(`GET_USER_BY_ID_${rows[0].id}`, { getUserById: rows[0] })
+
+        return "Puede reclamar premio"
 
       } catch (error) {
         console.log(error);
@@ -124,6 +140,14 @@ export default {
 
     //   }
     // }
+  },
+  Subscription: {
+    listUsers: {
+      subscribe: () => pubSub.asyncIterator(['GET_USERS'])
+    },
+    getUserById: {
+      subscribe: (_, { id }) => pubSub.asyncIterator([`GET_USER_BY_ID_${id}`])
+    }
   }
 }
 

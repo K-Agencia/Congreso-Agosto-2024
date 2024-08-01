@@ -10,6 +10,7 @@ input InputRegisterOdontologo {
 }
 
 type Odontologo {
+  id: Int
   cedula: String!
   nombres: String!
   apellidos: String!
@@ -18,15 +19,21 @@ type Odontologo {
   celular: String!
   email: String!
   especialidad: String!
+  reclamo: Int
 }
 
 type Query {
-  getInicial: String
+  getlistUsers: [Odontologo]
   queryUserByCedula(cedula: String!): String
   getDataUser(cedula: String!): Odontologo
 }
 
 type Mutation {
   registerUser(InputRegisterOdontologo: InputRegisterOdontologo!): String
-  registerUserWin(cedula: String!): String
+  registerUserWin(id: Int!): String
+}
+
+type Subscription {
+  listUsers: [Odontologo]!
+  getUserById(id: Int!): Odontologo!
 }
