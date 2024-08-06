@@ -14,6 +14,7 @@ import {
   MdKeyboardArrowRight,
   MdSearch
 } from "react-icons/md";
+
 import { useState } from 'react';
 
 const TableRegister = ({ columns, data }) => {
@@ -22,7 +23,7 @@ const TableRegister = ({ columns, data }) => {
 
   const table = useReactTable({
     columns,
-    data,
+    data: data || [],
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -42,12 +43,13 @@ const TableRegister = ({ columns, data }) => {
   return (
     <div className='Register my-5'>
 
-      <div className='mb-4 mx-4'>
+      <div className='mb-4 mx-4 grid grid-cols-6 gap-4'>
         <TextInput
           type='text'
           value={filtering}
           placeholder='Buscar'
           icon={MdSearch}
+          className='col-span-5'
           onChange={(e) => setFiltering(e.target.value)}
         />
       </div>

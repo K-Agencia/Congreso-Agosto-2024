@@ -1,24 +1,27 @@
 import { useForm } from 'react-hook-form';
 import InputText from '../components/InputText';
 import { Button, Modal } from 'flowbite-react';
-import { useMutation, useQuery } from '@apollo/client';
+import { useLazyQuery, useMutation } from '@apollo/client';
 import { GET_DATA_USER, REGISTER_ODONTOLOGO } from '../graphql';
 import { useEffect, useState } from 'react';
 import { capitalizarPrimeraLetra } from '../helpers/capitalizarPrimeraLetra';
 import Loader from '../components/Loader';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { CiWarning } from "react-icons/ci";
 import toast from 'react-hot-toast';
+import InputCheckbox from '../components/InputCheckbox';
+import { RoutersLink } from '../constants';
 
 const FormGame = () => {
 
   const { state } = useLocation();
-  const navigate = useLocation();
+  const navigate = useNavigate();
   const messageRequired = "Este campo es requerido."
 
   const [openModal, setOpenModal] = useState(true);
+  const [openModalPolitica, setOpenModalPolitica] = useState(false);
 
-  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm({
+  const { register, handleSubmit, formState: { errors, isSubmitted }, watch, setValue } = useForm({
     defaultValues: {
       cedula: '',
       nombres: '',
@@ -28,10 +31,15 @@ const FormGame = () => {
       celular: '',
       email: '',
       especialidad: '',
+      politica: false
     }
   })
 
   const [registerUserMutation, mutation] = useMutation(REGISTER_ODONTOLOGO, {
+    onCompleted() {
+      toast.success("¡Perfecto!, Muchas gracias por participar.");
+      navigate('/');
+    },
     onError(e) {
       console.log(e.graphQLErrors);
       console.log(e.networkError);
@@ -40,57 +48,61 @@ const FormGame = () => {
     }
   })
 
-  const query = useQuery(GET_DATA_USER, {
-    variables: {
-      cedula: state.cedula
-    },
+  const [lazyQuery, query] = useLazyQuery(GET_DATA_USER, {
     onError(e) {
-      console.log(e.graphQLErrors);
-      console.log(e.networkError);
-
-      toast.error("¡Ups! Tuvimos un error, intentalo más tarde.");
-      navigate(`/${state.game}`)
-
+      if (e.graphQLErrors[0].message !== "El usuario no se encuentra registrado.") {
+        console.log(e.graphQLErrors);
+        console.log(e.networkError);
+        toast.error("¡Ups! Tuvimos un error, intentalo más tarde.")
+      } else {
+        setValue('cedula', state.cedula);
+      }
     }
   })
 
   const onSubmit = async (data) => {
+
     const { cedula, nombres, apellidos, ciudad, direccion, celular, email, especialidad } = data;
-    try {
-      const res = await registerUserMutation({
-        variables: {
-          inputRegisterOdontologo: {
-            cedula, nombres, apellidos, ciudad, direccion, celular, email, especialidad
-          }
+
+    registerUserMutation({
+      variables: {
+        inputRegisterOdontologo: {
+          cedula, nombres, apellidos, ciudad, direccion, celular, email, especialidad
         }
-      })
-
-      navigate(`/${state.game}`);
-      toast.success("Puedes pasar a jugar.");
-      toast.success(res.data.registerUser);
-
-    } catch (error) {
-      console.log(error);
-    }
+      }
+    })
   }
 
   useEffect(() => {
-    if (query.data) {
+    if (state.message == "Necesitamos actualizar sus datos") {
+      lazyQuery({
+        variables: {
+          cedula: state.cedula
+        }
+      })
+    }
+  }, []);
+
+  useEffect(() => {
+    if (query.data && isSubmitted === false) {
       const { cedula, nombres, apellidos, ciudad, direccion, celular, email, especialidad } = query.data.getDataUser;
+      console.log(query.data);
 
       setValue('cedula', cedula);
-      setValue('nombres', capitalizarPrimeraLetra(nombres));
-      setValue('apellidos', capitalizarPrimeraLetra(apellidos));
-      setValue('ciudad', capitalizarPrimeraLetra(ciudad));
-      setValue('direccion', capitalizarPrimeraLetra(direccion));
-      setValue('celular', capitalizarPrimeraLetra(celular));
+      setValue('nombres', nombres !== "" ? capitalizarPrimeraLetra(nombres) : "");
+      setValue('apellidos', apellidos !== "" ? capitalizarPrimeraLetra(apellidos) : "");
+      setValue('ciudad', ciudad !== "" ? capitalizarPrimeraLetra(ciudad) : "");
+      setValue('direccion', direccion !== "" ? capitalizarPrimeraLetra(direccion) : "");
+      setValue('celular', celular !== "" ? capitalizarPrimeraLetra(celular) : "");
       setValue('email', email.toLowerCase());
-      setValue('especialidad', capitalizarPrimeraLetra(especialidad));
+      setValue('especialidad', especialidad !== "" ? capitalizarPrimeraLetra(especialidad) : "");
     }
   }, [query.data]);
 
+
   return (
-    <div className='container mx-auto px-8'>
+    <div className='container my-5 mx-auto px-8'>
+      <h1 className='mb-3 text-center font-bold text-2xl'>Actualización de datos</h1>
       <form
         onSubmit={handleSubmit(onSubmit)}
       >
@@ -218,11 +230,30 @@ const FormGame = () => {
           defaultValues={watch('especialidad')}
         />
 
+        <InputCheckbox
+          {...register('politica', {
+            required: "Este campo es requerido"
+          })}
+          required={true}
+          error={errors.politica}
+        >
+          Estoy de acuerdo con la <span className="text-blue-600 underline hover:no-underline dark:text-blue-500" onClick={() => setOpenModalPolitica(true)}>Politica de tratatiemto de datos</span>.
+        </InputCheckbox>
+
         <Button
           className='w-full my-5'
           type={'submit'}
         >
           Actualizar Datos
+        </Button>
+
+        <Button
+          outline
+          className='w-full my-5'
+          type={'button'}
+          onClick={() => navigate(RoutersLink.INDEX)}
+        >
+          Cancelar
         </Button>
       </form>
 
@@ -241,6 +272,17 @@ const FormGame = () => {
                 {"Actualizar"}
               </Button>
             </div>
+          </div>
+        </Modal.Body>
+      </Modal>
+
+      <Modal show={openModalPolitica} onClose={() => setOpenModalPolitica(false)}>
+        <Modal.Header>Habeas Data</Modal.Header>
+        <Modal.Body>
+          <div className="space-y-6">
+            <p className="text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+              Autorizo la recolección, almacenamiento, uso, tratamiento, y transmisión internacional o a terceros de mis datos personales por parte de <b>COLGATE PALMOLIVE COMPAÑÍA</b> con <b>NIT 890.300.546-6</b>, con el fin de recibir información sobre sus productos, campañas publicitarias y promociones, hacer parte de sus actividades para profesionales de la salud y recibir información comercial especializada de la misma. Esto de acuerdo a lo establecido en la Ley 1581 de 2012 y el decreto 377 de 2013, y conforme a la política de datos personales disponible en <a href="https://www.colgatepalmolive.com.co/legal-privacy-policy" className="text-cyan-600 hover:underline dark:text-cyan-500">https://www.colgatepalmolive.com.co/legal-privacy-policy</a>. Entendiendo que puedo solicitar la modificación o supresión de mis datos personales en cualquier momento.
+            </p>
           </div>
         </Modal.Body>
       </Modal>

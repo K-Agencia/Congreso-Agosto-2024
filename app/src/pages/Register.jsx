@@ -13,19 +13,29 @@ const Register = () => {
 
   const [openModal, setOpenModal] = useState(false);
   const [user, setUser] = useState({});
+  const [users, setUsers] = useState([]);
 
   const [listUserQuery, { data, loading }] = useLazyQuery(LIST_USERS, {
     onError(err) {
       console.log(err.graphQLErrors);
       console.log(err.networkError);
+    },
+    onCompleted(data) {
+      setUsers(data.getlistUsers)
     }
   })
 
   const [registerUserWinMutation, mutation] = useMutation(REGISTER_USER_WIN, {
-    refetchQueries: [LIST_USERS],
-    onCompleted() {
+    onCompleted(e) {
       toast.success("Se ha registrado correctamente");
+      console.log(e);
+      setUsers((prevItems) =>
+        prevItems.map((item) =>
+          item.id === user.id ? { ...item, reclamo: 1 } : item
+        )
+      );
       onClose();
+
     },
     onError(err) {
       console.log({ graphQLErrors: err.graphQLErrors });
@@ -33,6 +43,38 @@ const Register = () => {
       toast.error("¡Ups! Tuvimos un error en el seistema, intentalo más tarde.");
     }
   })
+
+  // useSubscription(SUBS_GET_LAST_USER, {
+  //   onData: ({ data }) => {
+  //     if (!data.data) return;
+  //     const updatedUser = data.data.getLastUser;
+  //     setUsers(prevUsers => {
+  //       return [...prevUsers, updatedUser];
+  //     });
+  //   }
+  // });
+
+  // useSubscription(GET_LAST_UPDATE, {
+  //   onData: ({ data }) => {
+  //     if (!data.data) return;
+  //     console.log(data);
+  //     const updatedRecord = data.data.lastUpdate;
+  //     console.log({ updatedRecord });
+  //     setUsers((prevUsers) => {
+  //       return prevUsers.map((user) => {
+  //         if (user.id === updatedRecord.id) {
+  //           return {
+  //             ...user,
+  //             reclamo: updatedRecord.reclamo
+  //           };
+  //         } else {
+  //           return user;
+  //         }
+  //       })
+  //     });
+  //   }
+  // });
+
 
   const columns = [
     {
@@ -94,8 +136,8 @@ const Register = () => {
     },
   ];
 
-  const handleDataWin = (userid) => {
-    setUser(userid)
+  const handleDataWin = (dataUser) => {
+    setUser(dataUser)
     setOpenModal(true);
   }
 
@@ -112,6 +154,8 @@ const Register = () => {
     })
   }
 
+  // console.log(users);
+
   useEffect(() => {
     if (!data) {
       listUserQuery()
@@ -121,7 +165,7 @@ const Register = () => {
   return (
     <>
       <h1 className='my-4 text-2xl text-center font-bold'>REGISTROS</h1>
-      {data && <TableRegister data={data.getlistUsers} columns={columns} />}
+      <TableRegister data={users} columns={columns} listUserQuery={listUserQuery} />
 
       {user.id &&
         <Modal className='z-10' show={openModal} size="md" onClose={() => onClose()} popup>
@@ -146,7 +190,8 @@ const Register = () => {
           </Modal.Body>
         </Modal>
       }
-      {loading || mutation.loading && <Loader />}
+      {loading && <Loader />}
+      {mutation.loading && <Loader />}
 
     </>
   )

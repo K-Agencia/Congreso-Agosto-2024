@@ -44,3 +44,24 @@ export const GET_DATA_USER = gql`
     }
   }
 `;
+
+export const GET_LAST_UPDATE = gql`
+  subscription Subscription {
+    lastUpdate {
+      id
+      reclamo
+    }
+  }
+`
+
+export const SUBS_GET_LAST_USER = gql`
+  subscription Subscription {
+    getLastUser {
+      id
+      cedula
+      nombres
+      apellidos
+      reclamo
+    }
+  }
+`

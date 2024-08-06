@@ -5,13 +5,12 @@ import { USER_BY_CEDULA } from '../graphql';
 import { Button } from 'flowbite-react';
 import Loader from '../components/Loader';
 import toast from 'react-hot-toast';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { RoutersLink } from '../constants';
 
 const SearchDocument = () => {
 
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [userByCedulaQuery, { loading }] = useLazyQuery(USER_BY_CEDULA, {
     onError(e) {
@@ -37,15 +36,16 @@ const SearchDocument = () => {
       })
 
       if (res.data.queryUserByCedula === "Ya sus datos han sido actualizados.") {
-        toast.success("Puedes pasar a jugar.");
         toast.success(res.data.queryUserByCedula);
         reset();
       } else {
-        navigate(RoutersLink.FORMGAME, {
+        toast(res.data.queryUserByCedula, {
+          icon: '⚠️',
+        });
+        navigate(RoutersLink.FORM, {
           state: {
-            game: location.pathname.slice(1),
             cedula: data.cedula,
-            message: res.data.queryUserByCedula
+            message: res.data.queryUserByCedula,
           }
         })
       }
@@ -56,8 +56,11 @@ const SearchDocument = () => {
   }
 
   return (
-    <div className='container mx-auto px-8'>
+    <div className='container min-w-screen min-h-screen flex flex-col justify-center items-center mx-auto px-8'>
+
+      <p className='mb-3'>Ingrese su cédula para activar el reclamo del obsequio.</p>
       <form
+        className='w-full'
         onSubmit={handleSubmit(onSubmit)}
       >
         <InputText
@@ -75,7 +78,7 @@ const SearchDocument = () => {
           className='w-full my-5'
           type={'submit'}
         >
-          Registrarse
+          Activar
         </Button>
       </form>
 
