@@ -36,7 +36,7 @@ const schema = makeExecutableSchema({
 
 const wsServer = new WebSocketServer({
   server: httpServer,
-  path: '/'
+  path: '/subs'
 })
 
 const wsServerCleanup = useServer({ schema }, wsServer);

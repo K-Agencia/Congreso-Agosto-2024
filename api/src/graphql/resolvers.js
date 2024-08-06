@@ -20,11 +20,11 @@ export default {
     },
     async queryUserByCedula(_, { cedula }) {
       try {
-        const data = await Odontologos.find({ cedula: `CO${cedula}` });
+        // const data = await Odontologos.find({ cedula: `CO${cedula}` });
 
-        if (data.length === 0) {
-          throw new GraphQLError("El usuario no se encuentra registrado.")
-        }
+        // if (data.length === 0) {
+        //   return "El usuario no se encuentra registrado."
+        // }
 
         const sendMysqlQuery = await QUERY_DB({
           sql: `SELECT count(*) as count FROM ${TABLE} WHERE cedulas = ?`,
@@ -46,7 +46,7 @@ export default {
         const data = await Odontologos.find({ cedula: `CO${cedula}` });
 
         if (data.length === 0) {
-          throw new GraphQLError("El usuario no se encuentra registrado.")
+          throw "El usuario no se encuentra registrado."
         }
 
         const { nombres, apellidos, ciudad, direccion, celular, email, especialidad } = data[0];
@@ -54,6 +54,9 @@ export default {
         return { cedula, nombres, apellidos, ciudad, direccion, celular, email, especialidad }
 
       } catch (error) {
+        if (error === "El usuario no se encuentra registrado.") {
+          throw new GraphQLError(error)
+        }
         console.log(error);
         throw new GraphQLError("¡Ups! Tuvimos un error en el seistema, intentalo más tarde.")
       }
@@ -64,31 +67,21 @@ export default {
       try {
 
         const { cedula, nombres, apellidos, ciudad, direccion, celular, email, especialidad } = InputRegisterOdontologo;
-        const data = await Odontologos.findOneAndUpdate(
-          {
-            cedula: `CO${cedula}`
-          },
-          {
-            nombres: nombres,
-            apellidos: apellidos,
-            ciudad: ciudad,
-            direccion: direccion,
-            celular: celular,
-            email: email,
-            especialidad: especialidad,
-          }
-        );
+
+        const select = await Odontologos.find({ cedula: `CO${cedula}` });
+
+        const nuevo = select[0] === undefined ? 1 : 0;
 
         await QUERY_DB({
-          sql: `INSERT INTO ${TABLE} (cedulas, nombres, apellidos, ciudad, direccion, celular, email, especialidad) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
-          values: [cedula, nombres, apellidos, ciudad, direccion, celular, email, especialidad]
+          sql: `INSERT INTO ${TABLE} (cedulas, nombres, apellidos, ciudad, direccion, celular, email, especialidad, nuevo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          values: [cedula, nombres, apellidos, ciudad, direccion, celular, email, especialidad, nuevo]
         });
 
         const [rows] = await QUERY_DB({
-          sql: `SELECT id, cedulas as cedula, nombres, apellidos, ciudad, direccion, celular, email, especialidad, reclamo FROM ${TABLE};`
+          sql: `SELECT id, cedulas as cedula, nombres, apellidos, ciudad, direccion, celular, email, especialidad, reclamo FROM ${TABLE} ORDER BY id DESC LIMIT 1;`
         });
 
-        pubSub.publish('GET_USERS', { listUsers: rows })
+        pubSub.publish('GET_LAST_USER', { getLastUser: rows[0] })
 
         return "Sus datos se han actualizado correctamente"
 
@@ -119,7 +112,7 @@ export default {
           values: id
         });
 
-        // pubSub.publish(`GET_USER_BY_ID_${rows[0].id}`, { getUserById: rows[0] })
+        pubSub.publish(`GET_LAST_UPDATE`, { lastUpdate: rows[0] })
 
         return "Puede reclamar premio"
 
@@ -145,8 +138,11 @@ export default {
     listUsers: {
       subscribe: () => pubSub.asyncIterator(['GET_USERS'])
     },
-    getUserById: {
-      subscribe: (_, { id }) => pubSub.asyncIterator([`GET_USER_BY_ID_${id}`])
+    lastUpdate: {
+      subscribe: () => pubSub.asyncIterator([`GET_LAST_UPDATE`])
+    },
+    getLastUser: {
+      subscribe: () => pubSub.asyncIterator([`GET_LAST_USER`])
     }
   }
 }

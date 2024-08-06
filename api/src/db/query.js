@@ -9,6 +9,7 @@ export const QUERY_DB = async ({ sql, values }) => {
     const [rows] = await connection.query(sql, values);
     data.push(rows);
     connection.release();
+    // console.log("release");
   } catch (err) {
     console.log(err);
   }
